@@ -34,7 +34,7 @@ const authenticateAdmin = (req, res, next) => {
       email: decoded.email,
       role: decoded.role,
       id: decoded.id,
-      noReg: decoded.noReg
+      noReg: decoded.noReg,
     };
 
     next(); // Proceed to the next middleware/handler
@@ -57,16 +57,18 @@ router.post("/update-used", authenticateAdmin, async (req, res) => {
 
     // If configuration doesn't exist, handle this case
     if (!config) {
-      return res
-        .status(404)
-        .json({ error: "Configuration not found. Please set the total capacity first." });
+      return res.status(404).json({
+        error: "Configuration not found. Please set the total capacity first.",
+      });
     }
 
     const { totalCapacity } = config;
 
     // Ensure newUsed does not exceed total capacity
     if (newUsed > totalCapacity) {
-      return res.status(400).json({ error: "Used value cannot exceed total capacity" });
+      return res
+        .status(400)
+        .json({ error: "Used value cannot exceed total capacity" });
     }
 
     const available = totalCapacity - newUsed;
@@ -83,7 +85,9 @@ router.post("/update-used", authenticateAdmin, async (req, res) => {
       },
     });
 
-    return res.status(200).json({ message: "Used value updated successfully", log: updatedLog });
+    return res
+      .status(200)
+      .json({ message: "Used value updated successfully", log: updatedLog });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
@@ -99,6 +103,14 @@ router.post("/update-total", authenticateAdmin, async (req, res) => {
   }
 
   try {
+    //check value before update
+    const configBefore = await prisma.configuration.findFirst();
+
+    //check value same
+    if (configBefore.totalCapacity == newTotal) {
+      return res.status(200).json({ error: "Total capacity still same" });
+    }
+
     // Update or create the total capacity in Configuration
     const config = await prisma.configuration.upsert({
       where: { id: 1 }, // Using ID 1 for a single configuration scenario
@@ -130,7 +142,11 @@ router.post("/update-total", authenticateAdmin, async (req, res) => {
       },
     });
 
-    return res.status(200).json({ message: "Total capacity updated successfully", config, log: updatedLog });
+    return res.status(200).json({
+      message: "Total capacity updated successfully",
+      config,
+      log: updatedLog,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
@@ -155,9 +171,9 @@ router.post("/count", async (req, res) => {
 
     // If configuration doesn't exist, handle this case
     if (!config) {
-      return res
-        .status(404)
-        .json({ error: "Configuration not found. Please set the total capacity first." });
+      return res.status(404).json({
+        error: "Configuration not found. Please set the total capacity first.",
+      });
     }
 
     const { totalCapacity } = config;
@@ -182,6 +198,8 @@ router.post("/count", async (req, res) => {
     } else if (type === "exit") {
       // Decrement used if greater than zero to avoid negative numbers
       used = Math.max(0, used - 1);
+    } else {
+      return res.status(400).json({ error: "Invalid type" });
     }
 
     // Calculate available slots
@@ -199,7 +217,71 @@ router.post("/count", async (req, res) => {
       },
     });
 
-    return res.status(200).json({ message: "Log created successfully", log: newLog });
+    return res
+      .status(200)
+      .json({ message: "Log created successfully", log: newLog });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/mancount", async (req, res) => {
+  const { location, type } = req.body;
+
+  if (!location || !type) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  if (type !== "entrance" && type !== "exit") {
+    return res.status(400).json({ error: "Invalid type" });
+  }
+
+  try {
+    const config = await prisma.configuration.findFirst();
+
+    if (!config) {
+      return res.status(404).json({
+        error: "Configuration not found. Please set the total capacity first.",
+      });
+    }
+
+    const { totalCapacity } = config;
+
+    const latestLog = await prisma.logs.findFirst({
+      orderBy: { timestamp: "desc" },
+    });
+
+    let used = 0;
+    let available = totalCapacity;
+
+    if (latestLog) {
+      used = latestLog.used;
+      available = latestLog.available;
+    }
+
+    if ((type = "entrance")) {
+      used += 1;
+    } else if ((type = "exit")) {
+      used = Math.max(0, used - 1);
+    } else {
+      return res.status(400).json({ error: "Invalid type" });
+    }
+
+    const addNewLog = await prisma.logs.create({
+      data: {
+        location,
+        state: type === "entrance" ? 1 : 0,
+        available,
+        used,
+        total: totalCapacity,
+        description: `Manual Entry recorded as ${type} at ${location}`,
+      },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "Log created successfully", log: addNewLog });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
