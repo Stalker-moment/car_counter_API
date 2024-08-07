@@ -4,7 +4,6 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const WebSocket = require("ws"); // Import the ws package
 const http = require("http"); // Import the http package
-const cronjob = require("node-cron");
 
 dotenv.config();
 
@@ -37,15 +36,15 @@ app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
 
-//handler if route not found
-app.use((req, res) => {
-  res.status(404).send({ error: "Not found" });
-});
-
 app.use("/api/users", usersLogin);
 app.use("/api/users", usersRegister);
 app.use("/api/users", userEdit);
 app.use("/api/internal", internalCount);
+
+//handler if route not found
+app.use((req, res) => {
+  res.status(404).send({ error: "Not found" });
+});
 
 const server = http.createServer(app);
 
@@ -88,10 +87,20 @@ wss.on("connection", async (ws, req) => {
       );
     }
 
+    // Send the initial data
+    let data = await sendLogs(filterDate);
+
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    // Send the data if there is a new log entry
     const intervalId = setInterval(async () => {
-      let data = await sendLogs(filterDate);
-      data = JSON.stringify(data);
-      ws.send(data);
+      let newData = await sendLogs(filterDate);
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
     }, 1000);
 
     ws.on("close", () => {
