@@ -110,10 +110,20 @@ wss.on("connection", async (ws, req) => {
   }
 
   if (req.url === "/count") {
+    //send initial data
+    let data = await sendCount();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
     const intervalId = setInterval(async () => {
-      let data = await sendCount();
-      data = JSON.stringify(data);
-      ws.send(data);
+      let newData = await sendCount();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
     }, 1000);
 
     ws.on("close", () => {
