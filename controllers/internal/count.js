@@ -227,7 +227,7 @@ router.post("/count", async (req, res) => {
 });
 
 router.post("/mancount", async (req, res) => {
-  const { location, type } = req.body;
+  let { location, type } = req.body;
 
   if (!location || !type) {
     return res.status(400).json({ error: "Missing required fields" });
