@@ -67,24 +67,24 @@ wss.on("connection", async (ws, req) => {
     let filterDate = null;
 
     if (dateParam) {
-      const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
-      if (dateRegex.test(dateParam)) {
-        const [day, month, year] = dateParam.split("-").map(Number);
-        filterDate = new Date(year, month - 1, day);
-      } else {
-        ws.send(
-          JSON.stringify({ error: "Invalid date format. Use DD-MM-YYYY." })
-        );
-        ws.close();
-        return;
-      }
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateRegex.test(dateParam)) {
+            const [year, month, day] = dateParam.split("-").map(Number);
+            filterDate = new Date(year, month - 1, day);
+        } else {
+            ws.send(
+                JSON.stringify({ error: "Invalid date format. Use YYYY-MM-DD." })
+            );
+            ws.close();
+            return;
+        }
     } else {
-      const today = new Date();
-      filterDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      );
+        const today = new Date();
+        filterDate = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate()
+        );
     }
 
     // Send the initial data
@@ -95,19 +95,19 @@ wss.on("connection", async (ws, req) => {
 
     // Send the data if there is a new log entry
     const intervalId = setInterval(async () => {
-      let newData = await sendLogs(filterDate);
+        let newData = await sendLogs(filterDate);
 
-      if (JSON.stringify(newData) !== data) {
-        data = JSON.stringify(newData);
-        ws.send(data);
-      }
+        if (JSON.stringify(newData) !== data) {
+            data = JSON.stringify(newData);
+            ws.send(data);
+        }
     }, 1000);
 
     ws.on("close", () => {
-      console.log("WebSocket client disconnected from /logs");
-      clearInterval(intervalId);
+        console.log("WebSocket client disconnected from /logs");
+        clearInterval(intervalId);
     });
-  }
+} 
 
   if (req.url === "/count") {
     //send initial data
