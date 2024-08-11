@@ -30,10 +30,10 @@ async function sendLogs() {
 
     for (let hour = 0; hour < 24; hour++) {
       hourlyData[`${hour}:00`] = {
-        incoming_vehicle: 0,
-        outgoing_vehicle: 0,
-        edited_value: 0,
-        edited_capacity: 0
+        "Incoming Vehicle": 0,
+        "Outgoing Vehicle": 0,
+        "Edited Value": 0,
+        "Edited Capacity": 0
       };
     }
 
@@ -43,16 +43,16 @@ async function sendLogs() {
 
       switch (log.state) {
         case 0:
-          hourlyData[hourKey].outgoing_vehicle += 1;
+          weeklyData[dayKey]["Outgoing Vehicle"] += 1;
           break;
         case 1:
-          hourlyData[hourKey].incoming_vehicle += 1;
+          weeklyData[dayKey]["Incoming Vehicle"] += 1;
           break;
         case 2:
-          hourlyData[hourKey].edited_value += 1;
+          weeklyData[dayKey]["Edited Value"] += 1;
           break;
         case 3:
-          hourlyData[hourKey].edited_capacity += 1;
+          weeklyData[dayKey]["Edited Capacity"] += 1;
           break;
         default:
           break;

@@ -15,17 +15,27 @@ async function sendYearlyLogs() {
       where: {
         timestamp: {
           gte: startOfYear,
-          lte: endOfYear
-        }
+          lte: endOfYear,
+        },
       },
       orderBy: {
-        timestamp: 'asc' // Order by ascending time to easily group by month
-      }
+        timestamp: "asc", // Order by ascending time to easily group by month
+      },
     });
 
     const monthsOfYear = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     const yearlyData = {};
 
@@ -33,29 +43,29 @@ async function sendYearlyLogs() {
       const monthKey = monthsOfYear[i];
 
       yearlyData[monthKey] = {
-        incoming_vehicle: 0,
-        outgoing_vehicle: 0,
-        edited_value: 0,
-        edited_capacity: 0
+        "Incoming Vehicle": 0,
+        "Outgoing Vehicle": 0,
+        "Edited Value": 0,
+        "Edited Capacity": 0,
       };
     }
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       const logDate = new Date(log.timestamp);
       const monthKey = monthsOfYear[logDate.getMonth()];
 
       switch (log.state) {
         case 0:
-          yearlyData[monthKey].outgoing_vehicle += 1;
+          weeklyData[dayKey]["Outgoing Vehicle"] += 1;
           break;
         case 1:
-          yearlyData[monthKey].incoming_vehicle += 1;
+          weeklyData[dayKey]["Incoming Vehicle"] += 1;
           break;
         case 2:
-          yearlyData[monthKey].edited_value += 1;
+          weeklyData[dayKey]["Edited Value"] += 1;
           break;
         case 3:
-          yearlyData[monthKey].edited_capacity += 1;
+          weeklyData[dayKey]["Edited Capacity"] += 1;
           break;
         default:
           break;
@@ -65,7 +75,7 @@ async function sendYearlyLogs() {
     return yearlyData;
   } catch (error) {
     console.error("Error fetching logs:", error);
-    throw error; 
+    throw error;
   }
 }
 

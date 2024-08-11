@@ -23,15 +23,15 @@ async function sendWeeklyLogs() {
       where: {
         timestamp: {
           gte: startOfWeek,
-          lte: endOfWeek
-        }
+          lte: endOfWeek,
+        },
       },
       orderBy: {
-        timestamp: 'asc' // Order by ascending time to easily group by day
-      }
+        timestamp: "asc", // Order by ascending time to easily group by day
+      },
     });
 
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const weeklyData = {};
 
     for (let i = 0; i < 7; i++) {
@@ -39,33 +39,33 @@ async function sendWeeklyLogs() {
       day.setDate(startOfWeek.getDate() + i);
 
       const dayKey = daysOfWeek[day.getDay()];
-      const dateFormatted = day.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      const dateFormatted = day.toISOString().split("T")[0]; // Format as YYYY-MM-DD
 
       weeklyData[dayKey] = {
         date: dateFormatted,
-        incoming_vehicle: 0,
-        outgoing_vehicle: 0,
-        edited_value: 0,
-        edited_capacity: 0
+        "Incoming Vehicle": 0,
+        "Outgoing Vehicle": 0,
+        "Edited Value": 0,
+        "Edited Capacity": 0,
       };
     }
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       const logDate = new Date(log.timestamp);
       const dayKey = daysOfWeek[logDate.getDay()];
 
       switch (log.state) {
         case 0:
-          weeklyData[dayKey].outgoing_vehicle += 1;
+          weeklyData[dayKey]["Outgoing Vehicle"] += 1;
           break;
         case 1:
-          weeklyData[dayKey].incoming_vehicle += 1;
+          weeklyData[dayKey]["Incoming Vehicle"] += 1;
           break;
         case 2:
-          weeklyData[dayKey].edited_value += 1;
+          weeklyData[dayKey]["Edited Value"] += 1;
           break;
         case 3:
-          weeklyData[dayKey].edited_capacity += 1;
+          weeklyData[dayKey]["Edited Capacity"] += 1;
           break;
         default:
           break;
@@ -75,7 +75,7 @@ async function sendWeeklyLogs() {
     return weeklyData;
   } catch (error) {
     console.error("Error fetching logs:", error);
-    throw error; 
+    throw error;
   }
 }
 
