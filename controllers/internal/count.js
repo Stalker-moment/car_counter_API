@@ -227,7 +227,7 @@ router.post("/count", async (req, res) => {
 });
 
 router.post("/mancount", async (req, res) => {
-  let { location, type } = req.body;
+  const { location, type } = req.body;
 
   if (!location || !type) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -238,8 +238,10 @@ router.post("/mancount", async (req, res) => {
   }
 
   try {
+    // Get the configuration to access the total capacity
     const config = await prisma.configuration.findFirst();
 
+    // If configuration doesn't exist, handle this case
     if (!config) {
       return res.status(404).json({
         error: "Configuration not found. Please set the total capacity first.",
@@ -248,25 +250,38 @@ router.post("/mancount", async (req, res) => {
 
     const { totalCapacity } = config;
 
+    // Get the latest log entry
     const latestLog = await prisma.logs.findFirst({
       orderBy: { timestamp: "desc" },
     });
 
     let used = 0;
-    let available = totalCapacity - used;
+    let available = totalCapacity;
 
-    if ((type = "entrance")) {
+    // If there is an existing log entry, use its values
+    if (latestLog) {
+      used = latestLog.used;
+      available = latestLog.available;
+    }
+
+    if (type === "entrance") {
+      // Increment used
       used += 1;
-    } else if ((type = "exit")) {
+    } else if (type === "exit") {
+      // Decrement used if greater than zero to avoid negative numbers
       used = Math.max(0, used - 1);
     } else {
       return res.status(400).json({ error: "Invalid type" });
     }
 
-    const addNewLog = await prisma.logs.create({
+    // Calculate available slots
+    available = totalCapacity - used;
+
+    // Create a new log entry
+    const newLog = await prisma.logs.create({
       data: {
         location,
-        state: type === "entrance" ? 1 : 0,
+        state: type === "entrance" ? 1 : 0, // 1 for entrance, 0 for exit
         available,
         used,
         total: totalCapacity,
@@ -276,7 +291,7 @@ router.post("/mancount", async (req, res) => {
 
     return res
       .status(200)
-      .json({ message: "Log created successfully", log: addNewLog });
+      .json({ message: "Manual added, Log created successfully", log: newLog });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
