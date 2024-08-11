@@ -21,6 +21,7 @@ const sendCount = require("./functions/sendCount");
 const sendToday = require("./functions/sendToday");
 const sendWeek = require("./functions/sendWeek");
 const sendYear = require("./functions/sendYear");
+const sendUsageToday = require("./functions/sendUsageToday");
 
 //-----------------Configuration------------------//
 app.use(bodyParser.json());
@@ -56,7 +57,7 @@ const wss = new WebSocket.Server({ server });
 // Setup WebSocket connections
 wss.on("connection", async (ws, req) => {
   console.log(`WebSocket client connected from ${req.url}`);
-  const requestArray = ["/logs", "/count", "/today", "/week", "/year"];
+  const requestArray = ["/logs", "/count", "/today", "/week", "/year", "/usage-today"];
 
   if (!requestArray.some((endpoint) => req.url.startsWith(endpoint))) {
     ws.send(JSON.stringify({ error: "Invalid request URL" }));
@@ -200,6 +201,29 @@ wss.on("connection", async (ws, req) => {
 
     ws.on("close", () => {
       console.log("WebSocket client disconnected from /year");
+      clearInterval(intervalId);
+    });
+  }
+
+  if (req.url === "/usage-today") {
+    //send initial data
+    let data = await sendUsageToday();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
+    const intervalId = setInterval(async () => {
+      let newData = await sendUsageToday();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
+    }, 1000);
+
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected from /usage-today");
       clearInterval(intervalId);
     });
   }

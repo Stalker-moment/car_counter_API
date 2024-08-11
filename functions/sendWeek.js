@@ -31,7 +31,7 @@ async function sendWeeklyLogs() {
       },
     });
 
-    const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const weeklyData = {};
 
     for (let i = 0; i < 7; i++) {
