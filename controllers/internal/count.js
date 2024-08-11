@@ -253,7 +253,7 @@ router.post("/mancount", async (req, res) => {
     });
 
     let used = 0;
-    let available = totalCapacity;
+    let available = totalCapacity - used;
 
     if (latestLog) {
       used = latestLog.used;
