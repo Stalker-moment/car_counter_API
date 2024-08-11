@@ -43,16 +43,16 @@ async function sendLogs() {
 
       switch (log.state) {
         case 0:
-          weeklyData[dayKey]["Outgoing Vehicle"] += 1;
+          hourlyData[hourKey]["Outgoing Vehicle"] += 1;
           break;
         case 1:
-          weeklyData[dayKey]["Incoming Vehicle"] += 1;
+          hourlyData[hourKey]["Incoming Vehicle"] += 1;
           break;
         case 2:
-          weeklyData[dayKey]["Edited Value"] += 1;
+          hourlyData[hourKey]["Edited Value"] += 1;
           break;
         case 3:
-          weeklyData[dayKey]["Edited Capacity"] += 1;
+          hourlyData[hourKey]["Edited Capacity"] += 1;
           break;
         default:
           break;
