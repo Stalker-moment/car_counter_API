@@ -255,11 +255,6 @@ router.post("/mancount", async (req, res) => {
     let used = 0;
     let available = totalCapacity - used;
 
-    if (latestLog) {
-      used = latestLog.used;
-      available = latestLog.available;
-    }
-
     if ((type = "entrance")) {
       used += 1;
     } else if ((type = "exit")) {
