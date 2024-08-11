@@ -18,6 +18,9 @@ const internalCount = require("./controllers/internal/count");
 // Load Functions
 const sendLogs = require("./functions/sendLogs");
 const sendCount = require("./functions/sendCount");
+const sendToday = require("./functions/sendToday");
+const sendWeek = require("./functions/sendWeek");
+const sendYear = require("./functions/sendYear");
 
 //-----------------Configuration------------------//
 app.use(bodyParser.json());
@@ -53,7 +56,7 @@ const wss = new WebSocket.Server({ server });
 // Setup WebSocket connections
 wss.on("connection", async (ws, req) => {
   console.log(`WebSocket client connected from ${req.url}`);
-  const requestArray = ["/logs", "/count"];
+  const requestArray = ["/logs", "/count", "/today", "/week", "/year"];
 
   if (!requestArray.some((endpoint) => req.url.startsWith(endpoint))) {
     ws.send(JSON.stringify({ error: "Invalid request URL" }));
@@ -128,6 +131,75 @@ wss.on("connection", async (ws, req) => {
 
     ws.on("close", () => {
       console.log("WebSocket client disconnected from /count");
+      clearInterval(intervalId);
+    });
+  }
+
+  if (req.url === "/today") {
+    //send initial data
+    let data = await sendToday();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
+    const intervalId = setInterval(async () => {
+      let newData = await sendToday();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
+    }, 1000);
+
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected from /today");
+      clearInterval(intervalId);
+    });
+  }
+
+  if (req.url === "/week") {
+    //send initial data
+    let data = await sendWeek();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
+    const intervalId = setInterval(async () => {
+      let newData = await sendWeek();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
+    }, 1000);
+
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected from /week");
+      clearInterval(intervalId);
+    });
+  }
+
+  if (req.url === "/year") {
+    //send initial data
+    let data = await sendYear();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
+    const intervalId = setInterval(async () => {
+      let newData = await sendYear();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
+    }, 1000);
+
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected from /year");
       clearInterval(intervalId);
     });
   }
