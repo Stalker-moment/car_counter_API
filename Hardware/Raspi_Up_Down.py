@@ -5,8 +5,8 @@ import requests
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(4, GPIO.IN, pull_up_down=GPIO.PUD_UP) ## Data from sensor up
 GPIO.setup(22, GPIO.IN, pull_up_down=GPIO.PUD_UP) ## Data from sensor down
-GPIO.setup(17, GPIO.OUT, pull_up_down=GPIO.PUD_UP) ## Data from button up
-GPIO.setup(27, GPIO.OUT, pull_up_down=GPIO.PUD_UP) ## Data from button down
+GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP) ## Data from button up
+GPIO.setup(27, GPIO.IN, pull_up_down=GPIO.PUD_UP) ## Data from button down
 
 ##PIN Output for relay
 GPIO.setup(18, GPIO.OUT) ## Relay L1
