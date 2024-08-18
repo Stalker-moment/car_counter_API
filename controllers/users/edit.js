@@ -87,7 +87,23 @@ router.post("/edit", async (req, res) => {
       return res.status(201).json({ message: `Succes update account and password` });
     } 
 
-    return res.status(200).json({ message: `Succes update account (${decoded.email})` });
+    //make a new jwt token
+    const expired = Date.now() + 60 * 60 * 60 * 1000; // 1 day
+    const newToken = jwt.sign(
+      {
+        id: updatedAccount.id,
+        firstName: updatedAccount.contact.firstName,
+        lastName: updatedAccount.contact.lastName,
+        role: updatedAccount.role,
+        email: updatedAccount.email,
+        phone: updatedAccount.contact.phone,
+        noReg: updatedAccount.contact.noReg,
+        expired: expired,
+      },
+      process.env.JWT_SECRET
+    );
+
+    return res.status(200).json({ message: `Succes update account (${decoded.email})`, token: newToken });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });
