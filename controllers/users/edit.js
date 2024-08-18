@@ -89,9 +89,10 @@ router.post("/edit", async (req, res) => {
 
     //make a new jwt token
     const expired = Date.now() + 60 * 60 * 60 * 1000; // 1 day
+
     const newToken = jwt.sign(
       {
-        id: updatedAccount.id,
+        id: account.id,
         firstName: updatedAccount.contact.firstName,
         lastName: updatedAccount.contact.lastName,
         role: updatedAccount.role,
