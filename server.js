@@ -22,6 +22,7 @@ const sendToday = require("./functions/sendToday");
 const sendWeek = require("./functions/sendWeek");
 const sendYear = require("./functions/sendYear");
 const sendUsageToday = require("./functions/sendUsageToday");
+const sendAccount = require("./functions/sendAccount");
 
 //-----------------Configuration------------------//
 app.use(bodyParser.json());
@@ -224,6 +225,29 @@ wss.on("connection", async (ws, req) => {
 
     ws.on("close", () => {
       console.log("WebSocket client disconnected from /usage-today");
+      clearInterval(intervalId);
+    });
+  }
+
+  if (req.url === "/accounts") {
+    //send initial data
+    let data = await sendAccount();
+    data = JSON.stringify(data);
+    ws.send(data);
+
+    //send data if there is a new log entry
+
+    const intervalId = setInterval(async () => {
+      let newData = await sendAccount();
+
+      if (JSON.stringify(newData) !== data) {
+        data = JSON.stringify(newData);
+        ws.send(data);
+      }
+    }, 1000);
+
+    ws.on("close", () => {
+      console.log("WebSocket client disconnected from /accounts");
       clearInterval(intervalId);
     });
   }
