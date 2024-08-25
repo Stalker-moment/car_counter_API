@@ -50,9 +50,9 @@ async function sendLogs(filterDate = null) {
       });
     }
 
-    //decode timestamp to date time string
+    //decode timestamp to dd-mm-yyyy hh:mm:ss
     logs.forEach((log) => {
-      log.timestamp = log.timestamp.toISOString();
+      log.timestamp = log.timestamp.toLocaleString("en-GB");
     });
 
     return logs;
