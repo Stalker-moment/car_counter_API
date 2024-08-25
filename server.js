@@ -58,7 +58,7 @@ const wss = new WebSocket.Server({ server });
 // Setup WebSocket connections
 wss.on("connection", async (ws, req) => {
   console.log(`WebSocket client connected from ${req.url}`);
-  const requestArray = ["/logs", "/count", "/today", "/week", "/year", "/usage-today"];
+  const requestArray = ["/logs", "/count", "/today", "/week", "/year", "/usage-today", "/accounts"];
 
   if (!requestArray.some((endpoint) => req.url.startsWith(endpoint))) {
     ws.send(JSON.stringify({ error: "Invalid request URL" }));
