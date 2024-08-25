@@ -15,10 +15,14 @@ async function sendCount() {
       throw new Error('No logs found');
     }
 
+    // Get jumlah account
+    const totalAccount = await prisma.account.count();
+
     latestLog = {
         available: latestLog.available,
         used: latestLog.used,
         total: latestLog.total,
+        totalAccount: totalAccount,
         timestamp: latestLog.timestamp
     };
 
