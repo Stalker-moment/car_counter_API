@@ -50,9 +50,9 @@ async function sendLogs(filterDate = null) {
       });
     }
 
-    //decode timestamp to string
+    //decode timestamp to date time string
     logs.forEach((log) => {
-      log.timestamp = log.timestamp.toString();
+      log.timestamp = log.timestamp.toISOString();
     });
 
     return logs;
