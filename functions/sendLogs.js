@@ -50,6 +50,11 @@ async function sendLogs(filterDate = null) {
       });
     }
 
+    //decode timestamp to string
+    logs.forEach((log) => {
+      log.timestamp = log.timestamp.toString();
+    });
+
     return logs;
   } catch (error) {
     console.error("Error fetching logs:", error);
