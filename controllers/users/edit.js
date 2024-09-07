@@ -84,7 +84,7 @@ router.post("/edit", async (req, res) => {
     }
 
     if(password){
-      return res.status(201).json({ message: `Succes update account and password` });
+      return res.status(201).json({ message: `Success update account and password` });
     } 
 
     //search for the updated account
@@ -114,7 +114,7 @@ router.post("/edit", async (req, res) => {
       process.env.JWT_SECRET
     );
 
-    return res.status(200).json({ message: `Succes update account (${decoded.email})`, token: newToken });
+    return res.status(200).json({ message: `Success update account (${decoded.email})`, token: newToken });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });

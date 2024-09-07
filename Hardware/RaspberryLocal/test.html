@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs and Configuration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Logs and Configuration</h1>
+
+        <!-- Current Log Section -->
+        <section>
+            <h2>Current Log</h2>
+            <div id="log-info">
+                <p><strong>Available:</strong> <span id="available">{{ log.available }}</span></p>
+                <p><strong>Used:</strong> <span id="used">{{ log.used }}</span></p>
+                <p><strong>Total:</strong> <span id="total">{{ log.total }}</span></p>
+                <p><strong>Timestamp:</strong> <span id="timestamp">{{ log.timestamp }}</span></p>
+            </div>
+        </section>
+
+        <!-- Update Section -->
+        <section>
+            <h2>Update Values</h2>
+            <form id="update-form" method="POST" action="/update-values">
+                <label for="new-used">New Used Value:</label>
+                <input type="number" id="new-used" name="new-used" required>
+
+                <label for="new-total">New Total Capacity:</label>
+                <input type="number" id="new-total" name="new-total" required>
+
+                <button type="submit">Update</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        document.getElementById('update-form').onsubmit = async function (event) {
+            event.preventDefault();
+            const newUsed = document.getElementById('new-used').value;
+            const newTotal = document.getElementById('new-total').value;
+
+            const response = await fetch('/update-values', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ newUsed, newTotal })
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Update successful');
+                document.getElementById('available').textContent = data.log.available;
+                document.getElementById('used').textContent = data.log.used;
+                document.getElementById('total').textContent = data.log.total;
+                document.getElementById('timestamp').textContent = data.log.timestamp;
+            } else {
+                alert('Update failed: ' + data.error);
+            }
+        };
+    </script>
+</body>
+</html>
+
