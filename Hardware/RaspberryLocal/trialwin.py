@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+import psutil
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:TierKun123@localhost:3304/countering'
@@ -95,6 +96,115 @@ def timestamp_to_jakarta(timestamp):
     
     return jakarta_time.strftime('%H:%M:%S %d-%m-%Y')
 
+@app.route('/status', methods=['GET'])
+def get_status():
+    # Mendapatkan CPU usage
+    cpu_usage = psutil.cpu_percent(interval=1)
+
+    # Mendapatkan memory usage
+    memory_info = psutil.virtual_memory()
+    memory_usage = memory_info.percent
+
+    # Mengembalikan hasil dalam format JSON
+    return jsonify({
+        'cpu_usage': cpu_usage,
+        'memory_usage': memory_usage,
+        'total_memory': memory_info.total,
+        'available_memory': memory_info.available,
+        'used_memory': memory_info.used,
+        'free_memory': memory_info.free
+    })
+
+@app.route('/receive')
+def receive():
+    direction = request.args.get('direction')  # Up, Down, atau Total
+
+    if not direction:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    if direction == 'up':
+        config = ConfigurationUp.query.first()
+        logs = LogUp.query.order_by(LogUp.id.desc()).limit(10).all()  # Mengurutkan berdasarkan ID terbaru
+    elif direction == 'down':
+        config = ConfigurationDown.query.first()
+        logs = LogDown.query.order_by(LogDown.id.desc()).limit(10).all()  # Mengurutkan berdasarkan ID terbaru
+    elif direction == 'total':
+        # Mengambil data terbaru dari kedua arah
+        config_up = ConfigurationUp.query.first()
+        config_down = ConfigurationDown.query.first()
+
+        if not config_up or not config_down:
+            return jsonify({'error': 'No Configuration data found'}), 404
+
+        # Menggabungkan total kapasitas dari kedua arah
+        total_capacity = config_up.totalCapacity + config_down.totalCapacity
+
+        # Mengambil log terbaru dari masing-masing arah, diurutkan berdasarkan ID terbaru
+        logs_up = LogUp.query.order_by(LogUp.id.desc()).limit(5).all()
+        logs_down = LogDown.query.order_by(LogDown.id.desc()).limit(5).all()
+
+        # Gabungkan logs dari up dan down, kemudian urutkan berdasarkan ID terbaru
+        logs = logs_up + logs_down
+        logs = sorted(logs, key=lambda x: x.id, reverse=True)[:10]
+
+        # Menjumlahkan total `used` dan `available` untuk kedua arah log terbaru saja
+        uplogs_new = logs_up[0] if logs_up else None
+        downlogs_new = logs_down[0] if logs_down else None
+
+
+        total_used = (uplogs_new.used if uplogs_new else 0) + (downlogs_new.used if downlogs_new else 0)
+        total_available = (uplogs_new.available if uplogs_new else config_up.totalCapacity) + (downlogs_new.available if downlogs_new else config_down.totalCapacity)
+
+        log_list = [
+            {
+                'timestamp': timestamp_to_jakarta(log.timestamp),
+                'location': log.location,
+                'state': log.state,
+                'used': log.used,
+                'available': log.available,
+                'total': log.total,
+                'description': log.description
+            } for log in logs
+        ]
+
+        response_data = {
+            'timestamp': max(config_up.timestamp, config_down.timestamp).isoformat(),
+            'totalCapacity': total_capacity,
+            'currentUsed': total_used,  # Menampilkan total current used
+            'currentAvailable': total_available,  # Menampilkan total current available
+            'logs': log_list
+        }
+
+        return jsonify(response_data)
+
+    else:
+        return jsonify({'error': 'Invalid direction'}), 400
+
+    if not config:
+        return jsonify({'error': f'No Configuration{direction.capitalize()} data found'}), 404
+
+    log_list = [
+        {
+            'timestamp': timestamp_to_jakarta(log.timestamp),
+            'location': log.location,
+            'state': log.state,
+            'used': log.used,
+            'available': log.available,
+            'total': log.total,
+            'description': log.description
+        } for log in logs
+    ]
+
+    response_data = {
+        'timestamp': config.timestamp.isoformat(),
+        'totalCapacity': config.totalCapacity,
+        'currentUsed': logs[0].used if logs else 0,  # Mengambil used dari log terbaru
+        'currentAvailable': logs[0].available if logs else config.totalCapacity,  # Mengambil available dari log terbaru
+        'logs': log_list
+    }
+
+    return jsonify(response_data)
+
 @app.route('/get-latest-data')
 def get_latest_data():
     direction = request.args.get('direction')  # Up, Down, atau Total
@@ -139,6 +249,7 @@ def get_latest_data():
             {
                 'timestamp': timestamp_to_jakarta(log.timestamp),
                 'location': log.location,
+                'state': log.state,
                 'used': log.used,
                 'available': log.available,
                 'total': log.total,
@@ -166,6 +277,7 @@ def get_latest_data():
         {
             'timestamp': timestamp_to_jakarta(log.timestamp),
             'location': log.location,
+            'state': log.state,
             'used': log.used,
             'available': log.available,
             'total': log.total,
@@ -182,27 +294,6 @@ def get_latest_data():
     }
 
     return jsonify(response_data)
-
-@app.route('/receive', methods=['GET'])
-def receive():
-    direction = request.args.get('direction')  # Up atau Down
-
-    if not direction:
-        return jsonify({"error": "Missing required fields"}), 400
-
-    log_model = LogUp if direction == "up" else LogDown
-    latest_log = log_model.query.order_by(log_model.id.desc()).first()
-    if not latest_log:
-        return jsonify({"error": "No logs found"}), 404
-
-    response = {
-        "available": latest_log.available,
-        "used": latest_log.used,
-        "total": latest_log.total,
-        "timestamp": latest_log.timestamp.isoformat()
-    }
-
-    return jsonify(response), 200
 
 # Route untuk update used
 @app.route('/update-used', methods=['POST'])
@@ -366,61 +457,144 @@ def index():
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        .scrollable-table {
-            max-height: 400px;
-            overflow-y: auto;
+    .scrollable-table {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .card-icon {
+        font-size: 24px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .card-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .available-negative {
+        color: #f87171;
+    }
+    .available-positive {
+        color: #34d399;
+    }
+    .card {
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    .card:hover {
+        border-color: #60a5fa;
+        transform: translateY(-5px);
+        z-index: 1;
+    }
+    .hidden {
+        display: none;
+    }
+    /* Sidebar akan selalu berada di kiri dengan left: 0 */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0; /* Posisi tetap di kiri */
+        height: 100%;
+        width: 200px;
+        background-color: #1f2937; /* bg-gray-800 */
+        padding-top: 20px;
+        padding: 20px;
+        transform: translateX(0); /* Sidebar selalu muncul di desktop */
+        transition: transform 0.3s ease;
+        z-index: 998;
+    }
+    .sidebar.open {
+        transform: translateX(0); /* Sidebar akan muncul di posisi kiri */
+        z-index: 999;
+    }
+    .sidebar button {
+        width: 100%;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 12px;
+    }
+    .hamburger {
+        display: none;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+    }
+    .state-1 {
+        background-color: #FFCDD2; 
+        border-radius: 0.5rem; 
+        color: #B71C1C; 
+    }
+    .state-2 {
+        background-color: #FFF9C4; 
+        border-radius: 0.5rem;
+        color: #F57F17; 
+    }
+    .state-3 {
+        background-color: #C8E6C9; 
+        border-radius: 0.5rem;
+        color: #1B5E20; 
+    }
+    .state-4 {
+        background-color: #BBDEFB;
+        border-radius: 0.5rem;
+        color: #0D47A1;
+    }
+    .state-5 {
+        background-color: #D1C4E9;
+        border-radius: 0.5rem;
+        color: #4A148C;
+    }
+    table {
+        border-spacing: 0 10px; /* Menambah space vertikal antar baris */
+    }
+    td {
+        padding: 12px 8px; /* Memberikan padding dalam setiap cell */
+    }
+    @media (max-width: 768px) {
+        .hamburger {
+            display: block;
         }
-        .card-icon {
-            font-size: 24px;
-            margin-right: 8px;
-            vertical-align: middle;
+        /* Sidebar tetap di posisi kiri di layar mobile */
+        .sidebar {
+            transform: translateX(-100%); /* Tetap hidden di mobile awalnya */
         }
-        .card-value {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .sidebar.open {
+            transform: translateX(0); /* Sidebar muncul di kiri ketika dibuka */
         }
-        .available-negative {
-            color: #f87171;
-        }
-        .available-positive {
-            color: #34d399;
-        }
-        .card {
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-        .card:hover {
-            border-color: #60a5fa;
-            transform: translateY(-5px);
-        }
-        .hidden {
-            display: none;
-        }
+    }
+
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-900 p-2 text-white">
 
-    <div class="max-w-4xl mx-auto p-6 bg-gray-800 rounded-lg shadow-lg">
+    <div class="max-w-4xl mx-auto p-6 mt-5 mb-5 bg-gray-800 rounded-lg shadow-lg">
 
         <!-- Title -->
         <h1 class="text-4xl font-bold text-blue-400 text-center mb-6">Parking Management</h1>
 
-        <!-- State Selection Buttons -->
-        <div class="text-center mb-6">
-            <button class="text-white font-bold py-2 px-6 rounded-lg bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 shadow-lg mr-2" onclick="setDirection('up')">
+        <button id="hamburgerBtn" class="md:mt-0 mt-4 ml-1 hamburger text-white font-bold py-2 px-4 rounded-lg bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 shadow-lg">
+             <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar p-2 z-999">
+            <button class="mt-14
+             text-white font-bold py-2 px-4 rounded-lg bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 shadow-lg" onclick="setDirection('up')">
                 <i class="fas fa-arrow-up mr-2"></i>Up
             </button>
-            <button class="text-white font-bold py-2 px-6 rounded-lg bg-gradient-to-r from-red-400 to-pink-500 hover:from-red-500 hover:to-pink-600 shadow-lg mr-2" onclick="setDirection('down')">
+            <button class="text-white font-bold py-2 px-4 rounded-lg bg-gradient-to-r from-red-400 to-pink-500 hover:from-red-500 hover:to-pink-600 shadow-lg" onclick="setDirection('down')">
                 <i class="fas fa-arrow-down mr-2"></i>Down
             </button>
-            <button class="text-white font-bold py-2 px-6 rounded-lg bg-gradient-to-r from-purple-400 to-indigo-500 hover:from-purple-500 hover:to-indigo-600 shadow-lg" onclick="setDirection('total')">
+            <button class="text-white font-bold py-2 px-4 rounded-lg bg-gradient-to-r from-purple-400 to-indigo-500 hover:from-purple-500 hover:to-indigo-600 shadow-lg" onclick="setDirection('total')">
                 <i class="fas fa-chart-pie mr-2"></i>Total
             </button>
         </div>
 
         <!-- Current Status Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div class="p-6 bg-gray-700 rounded-lg shadow-md flex items-center card">
+            <div class="z-0 p-6 bg-gray-700 rounded-lg shadow-md flex items-center card">
                 <i class="fas fa-chart-line card-icon text-green-400"></i>
                 <div>
                     <h2 class="text-xl font-semibold">Current Used</h2>
@@ -448,18 +622,19 @@ def index():
         <div class="mb-6 p-6 bg-gray-700 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold mb-2">Recent Logs</h2>
             <div class="scrollable-table">
-                <table id="logsTable" class="w-full border-collapse text-sm">
+                <table id="logsTable" class="w-full border-collapse space-between space-y-3 text-sm">
                     <thead>
-                        <tr>
+                        <tr class="p-2">
                             <th class="px-4 py-2 text-left">Time (Jakarta)</th>
                             <th class="px-4 py-2 text-left">Location</th>
                             <th class="px-4 py-2 text-left">Used</th>
                             <th class="px-4 py-2 text-left">Available</th>
                             <th class="px-4 py-2 text-left">Total</th>
+                            <th class="px-4 py-2 text-left">State</th>
                             <th class="px-4 py-2 text-left">Description</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class=" space-y-3 ">
                         <!-- Logs will be inserted here -->
                     </tbody>
                 </table>
@@ -579,6 +754,7 @@ def index():
     }
 
     function handleButtonClick(direction) {
+       
         fetch(`/get-latest-data?direction=${direction}`)
         .then(response => response.json())
         .then(data => {
@@ -586,26 +762,54 @@ def index():
             document.getElementById('currentAvailable').innerText = data.currentAvailable || 0;
             document.getElementById('timestamp').innerText = data.timestamp || '';
             document.getElementById('totalCapacity').innerText = data.totalCapacity || '';
-            updateLogsTable(data.logs || []);
         });
+        updateLogsTable(data.logs || []);
     }
-
     function updateLogsTable(logs) {
         const tableBody = document.getElementById('logsTable').querySelector('tbody');
+                                    
         tableBody.innerHTML = '';
+
+        // Objek map untuk state description
+        const stateDescription = {
+            1: "Bawah masuk",
+            2: "Bawah keluar",
+            3: "Atas masuk",
+            4: "Atas keluar",
+            5: "Edit Data Used",
+            6: "Edit Data Total"
+        };
+
         logs.forEach(log => {
             const row = document.createElement('tr');
+            row.style.marginBottom = '10px';
+
+            const stateClass = `state-${log.state}`;
+            
+            const formattedTimestamp = new Date(log.timestamp).toLocaleString('en-US', {
+                timeZone: 'Asia/Jakarta',
+                hour12: false
+            });
+
+            const stateText = stateDescription[log.state] || 'Unknown State'; 
+
             row.innerHTML = `
-                <td class="px-4 py-2">${log.timestamp}</td>
+                <td class="px-4 py-2">${formattedTimestamp}</td>
                 <td class="px-4 py-2">${log.location}</td>
                 <td class="px-4 py-2">${log.used}</td>
                 <td class="px-4 py-2">${log.available}</td>
                 <td class="px-4 py-2">${log.total}</td>
+                <td class="px-4 text-center ">
+                    <span class="px-4 py-1 w-full rounded-lg ${stateClass}">${stateText}</span>
+                </td>
                 <td class="px-4 py-2">${log.description}</td>
             `;
             tableBody.appendChild(row);
         });
     }
+
+
+
 
     function showModal(message) {
         document.getElementById('modalMessage').innerText = message;
@@ -615,7 +819,9 @@ def index():
     function closeModal() {
         document.getElementById('messageModal').classList.add('hidden');
     }
-
+    document.getElementById('hamburgerBtn').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('open');
+    });
     // Start fetching data when the page loads
     window.onload = startDataFetch;
 </script>
